@@ -17,7 +17,9 @@
   },
   "homepage": "https://github.com/Matt-0201/Genoa#readme",
   "dependencies": {
+    "dotenv": "^17.4.0",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.1.0",
     "nodemon": "^3.1.14"
   }
