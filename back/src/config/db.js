@@ -1,10 +1,7 @@
-const dotenv = require('dotenv');
-dotenv.config();
 const MongoClient = require('mongodb').MongoClient;
-const url = 'mongodb://admin:password@localhost:27017';
 let db;
 
-const connectDB = async () => {
+const connectDB = async (url) => {
     try {
         const client = await MongoClient.connect(url);
         db = client.db("genoa");
@@ -15,6 +12,6 @@ const connectDB = async () => {
 };
 
 // Fonction pour récupérer l'instance de la DB dans les autres fichiers
-const getDb = () => db;
+const getDB = () => db;
 
-module.exports = { connectDB, getDb };
+module.exports = { connectDB, getDB };
