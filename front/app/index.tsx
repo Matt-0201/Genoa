@@ -1,42 +1,62 @@
-import { Text, View, TextInput, Button } from "react-native";
-import {useState} from 'react';
+import { View, Text, TextInput, Button } from 'react-native';
+import { useState } from 'react';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Index() {
-
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState(''); 
+  const [password, setPassword] = useState('');
+  const [erreur, setErreur] = useState('');
+  
+  const router = useRouter(); // ← pour naviguer
 
-  function handleLogin() {
-    console.log('Email:', email);
-    console.log('Mot de Passe:', password);
+  async function handleLogin() {
+    try {
+      const response = await fetch('http://127.0.0.1:3000/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (data.success === "true") {
+        // 1. Stocker le token
+        await AsyncStorage.setItem('token', data.token);
+        console.log('Token stocké !');
+        
+        // 2. Naviguer vers l'arbre
+        router.push('/tree');
+      } else {
+        setErreur(data.message);
+      }
+    } catch (error) {
+      setErreur('Serveur injoignable');
+    }
   }
 
   return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Text>Bienvenue sur Genoa</Text>
-
-      <Text>Connectez vous avec votre adresse mail et votre mot de passe</Text>
+    <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
+      <Text style={{ fontSize: 24, marginBottom: 20 }}>Connexion</Text>
 
       <TextInput
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
-        style={{ borderWidth: 1, padding: 8, marginBottom: 8 }}
+        style={{ borderWidth: 1, padding: 10, marginBottom: 10 }}
       />
 
       <TextInput
-        placeholder="Mot de Passe"
+        placeholder="Mot de passe"
         value={password}
         onChangeText={setPassword}
-        style={{ borderWidth: 1, padding: 8, marginBottom: 8 }}
+        secureTextEntry
+        style={{ borderWidth: 1, padding: 10, marginBottom: 10 }}
       />
 
+      {erreur ? <Text style={{ color: 'red', marginBottom: 10 }}>{erreur}</Text> : null}
+
+      <Button title="Se connecter" onPress={handleLogin} />
     </View>
   );
 }
