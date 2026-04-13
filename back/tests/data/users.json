@@ -1,0 +1,32 @@
+[
+    {
+        "email": "matthieukollen@gmail.com",
+        "password": "admin",
+        "role": "admin",
+        "isConnected": 0
+    },
+    {
+        "email": "toto@gmail.com",
+        "password": "toto",
+        "role": "reader",
+        "isConnected": 0
+    },
+    {
+        "email": "tata@gmail.com",
+        "password": "tata",
+        "role": "editor",
+        "isConnected": 0
+    },
+    {
+        "email": "foo@gmail.com",
+        "password": "foo",
+        "role": "editor",
+        "isConnected": 0
+    },
+    {
+        "email": "bar@gmail.com",
+        "password": "bar",
+        "role": "writer",
+        "isConnected": 0
+    }
+]
