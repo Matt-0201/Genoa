@@ -2,26 +2,44 @@ const path = require('path');
 require('dotenv').config({path: path.resolve(__dirname, "../.env")});
 const jwt = require("jsonwebtoken");
 const { getDB } = require('../config/db');
+const bcrypt = require('bcryptjs');
 
+// Complexity for the hash
+const saltRounds = 10;
+
+// Route for the login and register
+// Same road due to the few infomation needed to register
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
         const db = getDB();
         const users = db.collection("users");
         let existing_user = await users.findOne({ email: email });
+
+        // We create a user if it does not exist
         if (existing_user == null) {
-            // CHANGER : METTRE USER + ROLE + ISCONNECTED DANS LE PAYLOD
-            // ET AJOUTER USER DANS DB
-            const payload = {email: req.body.email};
+            console.log("Création d'un nouvel utilisateur")
+            const salt = await bcrypt.genSalt(saltRounds);
+            const hashedPassword = await bcrypt.hash(password, salt);
+            // At first connexion, the user is in "wait", he needs to validate his incription by an admin
+            const newUser = {
+                email: email,
+                password: hashedPassword,
+                role: "wait"
+            }     
+            await users.insertOne(newUser);       
+            const payload = {email: newUser.email};
             const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "24h" });
             res.status(200).json({
                     "success": "true",
                     "message": "Connexion réussie, utilisateur créé",
-                    "user": req.body.email,
+                    "user": newUser.email,
                     "token": token
                 }) 
+        // Verify the connexion if already in the ddb
         } else {
-            if (existing_user.password === password) { // Temporaire, comparer avec une version cryptée du mdp
+            const isValidPassword = await bcrypt.compare(password, existing_user.password);  // We use created salt to compare
+            if (isValidPassword) {
                 const payload = {email: existing_user.email, role: existing_user.role};
                 const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "24h" });
                 res.status(200).json({
@@ -30,6 +48,7 @@ exports.login = async (req, res) => {
                     "user": req.body.email,
                     "token": token
                 })
+            // Error if invalid password 
             } else {
                 res.status(401).json({
                     "success": "false",

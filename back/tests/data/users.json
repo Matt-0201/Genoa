@@ -2,31 +2,26 @@
     {
         "email": "matthieukollen@gmail.com",
         "password": "admin",
-        "role": "admin",
-        "isConnected": 0
+        "role": "admin"
     },
     {
         "email": "toto@gmail.com",
         "password": "toto",
-        "role": "reader",
-        "isConnected": 0
+        "role": "reader"
     },
     {
         "email": "tata@gmail.com",
         "password": "tata",
-        "role": "editor",
-        "isConnected": 0
+        "role": "editor"
     },
     {
         "email": "foo@gmail.com",
         "password": "foo",
-        "role": "editor",
-        "isConnected": 0
+        "role": "editor"
     },
     {
         "email": "bar@gmail.com",
         "password": "bar",
-        "role": "writer",
-        "isConnected": 0
+        "role": "writer"
     }
 ]

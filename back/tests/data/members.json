@@ -1,0 +1,36 @@
+[
+    {
+        "LasteName": "Tatatata",
+        "FirstName": "Tata",
+        "Gender": "Man",
+        "Photo": null,
+        "Birth": "17/03/2001",
+        "Death": null,
+        "Work": "Unemployed",
+        "Contact": {
+            "mail": "tata@gmail.com",
+            "phone": "07 76 97 14 78"
+        },
+        "Miscellaneous": {
+            "public": "Like to eat ice cream",
+            "private": "Steal a pen one time" 
+        }
+    },
+    {
+        "LasteName": "Totototo",
+        "FirstName": "Toto",
+        "Gender": "Woman",
+        "Photo": null,
+        "Birth": "29/07/2002",
+        "Death": null,
+        "Work": "Unemployed",
+        "Contact": {
+            "mail": "toto@gmail.com",
+            "phone": "07 78 71 75 78"
+        },
+        "Miscellaneous": {
+            "public": "Like to eat ice cream",
+            "private": "Steal a pen one time" 
+        }
+    }
+]

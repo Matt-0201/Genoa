@@ -1,12 +1,16 @@
 const path = require('path');
 require('dotenv').config();
-const fs = require('fs')
+const fs = require('fs');
+const bcrypt = require('bcryptjs');
 const { MongoClient } = require('mongodb')
 
 const url = process.env.DB_URL;
 console.log(url)
 const dbName = "genoa"
+const saltRounds = 10;
 
+// Function to insert users:
+// Acualise users if new informations or create them  
 async function initUsers() {
     const client = new MongoClient(url)
     
@@ -21,6 +25,11 @@ async function initUsers() {
         const usersImport = JSON.parse(data);
         console.log(usersImport)
         for (const user of usersImport) {
+            console.log("Actual password: " + user.password)
+            const salt = await bcrypt.genSalt(saltRounds);
+            const hashedPassword = await bcrypt.hash(user.password, salt);
+            user.password = hashedPassword;
+            console.log("New password: " + user.password)
             await users.updateOne(
                 { email: user.email },    // What we search 
                 { $set: user },           // Data to insert
