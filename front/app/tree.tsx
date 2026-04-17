@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Dimensions, TouchableOpacity, Modal, Text as RNText, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Dimensions, TouchableOpacity, Modal, Text as RNText, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Line, Rect, Text, G } from 'react-native-svg';
 import dagre from 'dagre';
@@ -24,7 +24,7 @@ type NodeData = {
 };
 
 type EdgeData = {
-  id :string;
+  id: string;
   source: string;
   target: string;
   type: string;
@@ -117,50 +117,60 @@ export default function Tree() {
 
   // --- SUPPRESSION MEMBRE ---
   const handleDeleteMember = (id: string, name: string) => {
-  const confirme = window.confirm(`Supprimer ${name} ? Cela supprimera aussi tous ses liens.`);
-  if (!confirme) return;
+    const confirme = window.confirm(`Supprimer ${name} ? Cela supprimera aussi tous ses liens.`);
+    if (!confirme) return;
 
-  AsyncStorage.getItem('token').then(token => {
-    fetch(`http://localhost:3000/members/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token ?? ''}` }
-    }).then(() => fetchGraphData())
-      .catch(() => window.alert("Impossible de supprimer le membre"));
-  });
-};
-
-// Supression Lien
-const handleDeleteEdge = (relationId: string) => {
-  const confirme = window.confirm("Supprimer ce lien ?");
-  if (!confirme) return;
-
-  AsyncStorage.getItem('token').then(token => {
-    fetch(`http://localhost:3000/relationships/${relationId}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token ?? ''}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        console.log('Réponse suppression :', data);
-        if (data.success === "true") {
-          fetchGraphData();
-        } else {
-          window.alert("Erreur : " + data.message);
-        }
+    AsyncStorage.getItem('token').then(token => {
+      fetch(`http://localhost:3000/members/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token ?? ''}` }
       })
-      .catch(() => window.alert("Impossible de supprimer le lien"));
-  });
-};
+        .then(() => fetchGraphData())
+        .catch(() => window.alert("Impossible de supprimer le membre"));
+    });
+  };
 
+  // --- SUPPRESSION LIEN ---
+  const handleDeleteEdge = (relationId: string) => {
+    const confirme = window.confirm("Supprimer ce lien ?");
+    if (!confirme) return;
 
-  // --- DAGRE ---
-  const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: 'TB', nodesep: 60, ranksep: 80 });
-  g.setDefaultEdgeLabel(() => ({}));
+    AsyncStorage.getItem('token').then(token => {
+      fetch(`http://localhost:3000/relationships/${relationId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token ?? ''}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          console.log('Réponse suppression :', data);
+          if (data.success === "true") {
+            fetchGraphData();
+          } else {
+            window.alert("Erreur : " + data.message);
+          }
+        })
+        .catch(() => window.alert("Impossible de supprimer le lien"));
+    });
+  };
 
-  nodes.forEach(n => g.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT }));
-  edges.filter(e => e.type !== 'couple').forEach(e => g.setEdge(e.source, e.target));
-  dagre.layout(g);
+  // --- DAGRE (synchronisé avec useMemo) ---
+  const { g } = useMemo(() => {
+    const graph = new dagre.graphlib.Graph();
+    graph.setGraph({ rankdir: 'TB', nodesep: 60, ranksep: 80 });
+    graph.setDefaultEdgeLabel(() => ({}));
+
+    const knownIds = new Set(nodes.map(n => n.id));
+    nodes.forEach(n => graph.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT }));
+
+    edges
+      .filter(e => e.type !== 'couple')
+      .filter(e => knownIds.has(e.source) && knownIds.has(e.target))
+      .forEach(e => graph.setEdge(e.source, e.target));
+
+    dagre.layout(graph);
+
+    return { g: graph };
+  }, [nodes, edges]);
 
   const { width, height } = Dimensions.get('window');
 
@@ -179,10 +189,11 @@ const handleDeleteEdge = (relationId: string) => {
         <Animated.View style={[{ flex: 1 }, animatedStyle]}>
           <Svg width={width * 2} height={height * 2}>
 
-            {/* Liens parent-enfant visibles */}
+            {/* Liens parent-enfant */}
             {g.edges().map((e, i) => {
               const edge = g.edge(e);
               const originalEdge = edges.find(ed => ed.source === e.v && ed.target === e.w);
+              if (!edge || !edge.points || edge.points.length < 2) return null;
               return (
                 <G key={`edge-${i}`}>
                   <Line
@@ -191,7 +202,6 @@ const handleDeleteEdge = (relationId: string) => {
                     stroke={originalEdge?.biologique === false ? "#e67e22" : "#bdc3c7"}
                     strokeWidth={2}
                   />
-                  {/* Zone cliquable transparente */}
                   <Line
                     x1={edge.points[0].x} y1={edge.points[0].y}
                     x2={edge.points[edge.points.length - 1].x} y2={edge.points[edge.points.length - 1].y}
@@ -213,7 +223,7 @@ const handleDeleteEdge = (relationId: string) => {
             {edges.filter(e => e.type === 'couple').map((couple, i) => {
               const node1 = g.node(couple.source);
               const node2 = g.node(couple.target);
-              if (!node1 || !node2) return null;
+              if (!node1 || !node2 || node1.x === undefined || node2.x === undefined) return null;
               return (
                 <G key={`couple-${i}`}>
                   <Line
@@ -222,7 +232,6 @@ const handleDeleteEdge = (relationId: string) => {
                     stroke={couple.statut === 'divorce' ? 'red' : 'gold'}
                     strokeWidth={4}
                   />
-                  {/* Zone cliquable transparente */}
                   <Line
                     x1={node1.x + NODE_WIDTH / 4} y1={node1.y}
                     x2={node2.x - NODE_WIDTH / 4} y2={node2.y}
@@ -246,6 +255,7 @@ const handleDeleteEdge = (relationId: string) => {
             {g.nodes().map(id => {
               const node = g.node(id);
               const originalData = nodes.find(n => n.id === id);
+              if (!node || node.x === undefined) return null;
               return (
                 <G key={id}>
                   <Rect
@@ -388,8 +398,8 @@ const handleDeleteEdge = (relationId: string) => {
                   if (lienSelectionne?.relationId) {
                     handleDeleteEdge(lienSelectionne.relationId);
                     setLienSelectionne(null);
-                    }
-                  }}
+                  }
+                }}
                 style={{ backgroundColor: '#e74c3c', padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 10 }}
               >
                 <RNText style={{ color: 'white', fontWeight: 'bold' }}>🗑️ Supprimer ce lien</RNText>
