@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'expo-router';
 import { View, Dimensions, TouchableOpacity, Modal, Text as RNText } from 'react-native';
-import Svg, { Line, Rect, Text, G} from 'react-native-svg';import dagre from 'dagre';
+import Svg, { Line, Rect, Text, G } from 'react-native-svg';
+import dagre from 'dagre';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import { getRoleFromToken } from '../service/auth';
+
 
 const membres = [
   { id: '1', nom: 'Dupont', prenom: 'Grand-père', sexe: 'M', dateNaissance: '1940-05-12', dateDeces: '2010-03-01', profession: 'Agriculteur' },
@@ -58,8 +62,21 @@ function couleurCouple(statut: string) {
 }
 
 export default function Tree() {
+  const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
   const [membreSelectionne, setMembreSelectionne] = useState<Membre | null>(null);
   const [lienSelectionne, setLienSelectionne] = useState<Lien | null>(null);
+
+  useEffect(() => {
+  async function verifierAcces() {
+    const role = await getRoleFromToken();
+    if (!role || role === 'wait') {
+      router.replace('/wait');
+    }
+    setIsAdmin(role === 'admin');
+  }
+  verifierAcces();
+}, []);
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -114,6 +131,14 @@ export default function Tree() {
 
   return (
     <>
+    {isAdmin && (
+    <TouchableOpacity
+      onPress={() => router.push('/admin')}
+      style={{ padding: 10, backgroundColor: '#e74c3c', alignItems: 'center' }}
+    >
+      <RNText style={{ color: 'white', fontWeight: 'bold' }}>⚙️ Administration</RNText>
+    </TouchableOpacity>
+    )}
       <GestureHandlerRootView style={{ flex: 1 }}>
         <GestureDetector gesture={gesture}>
           <Animated.View style={[{ flex: 1 }, animatedStyle]}>

@@ -19,14 +19,20 @@ export default function Index() {
       });
 
       const data = await response.json();
-
+      
       if (data.success === "true") {
         // 1. Stocker le token
         await AsyncStorage.setItem('token', data.token);
         console.log('Token stocké !');
+        const role = data.role; // Assure-toi que le back renvoie le rôle dans la réponse du login
+
+        if (role === 'wait') {
+          router.replace('/wait');
+        } else {
+          router.replace('/tree');
+        }
+
         
-        // 2. Naviguer vers l'arbre
-        router.push('/tree');
       } else {
         setErreur(data.message);
       }
