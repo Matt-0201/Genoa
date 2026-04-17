@@ -17,6 +17,7 @@ exports.getGraph = async (req, res) => {
         }));
 
         const edges = allRelations.map((r) => ({
+            id: r._id.toString(),
             source: r.sourceId.toString(),
             target: r.targetId.toString(),
             type: r.type
@@ -29,6 +30,7 @@ exports.getGraph = async (req, res) => {
             edges: edges
         });
     } catch (err) {
+        console.error("Erreur getGraph :", err);
         res.status(500).json({ success: "false", message: "Erreur serveur" });
     }
 };

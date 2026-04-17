@@ -8,7 +8,7 @@ export default function Index() {
   const [password, setPassword] = useState('');
   const [erreur, setErreur] = useState('');
   
-  const router = useRouter(); // ← pour naviguer
+  const router = useRouter(); 
 
   async function handleLogin() {
     try {
@@ -24,15 +24,14 @@ export default function Index() {
         // 1. Stocker le token
         await AsyncStorage.setItem('token', data.token);
         console.log('Token stocké !');
-        const role = data.role; // Assure-toi que le back renvoie le rôle dans la réponse du login
-
+        const role = data.role; 
         if (role === 'wait') {
           router.replace('/wait');
         } else {
           router.replace('/tree');
         }
 
-        
+
       } else {
         setErreur(data.message);
       }

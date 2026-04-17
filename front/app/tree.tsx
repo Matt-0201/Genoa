@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Dimensions, TouchableOpacity, Modal, Text as RNText, StyleSheet, ActivityIndicator, Alert} from 'react-native';
+import { View, Dimensions, TouchableOpacity, Modal, Text as RNText, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Line, Rect, Text, G } from 'react-native-svg';
 import dagre from 'dagre';
@@ -24,18 +24,27 @@ type NodeData = {
 };
 
 type EdgeData = {
+  id :string;
   source: string;
   target: string;
-  type: string; 
-  biologique?: boolean; 
-  statut?: string;    
+  type: string;
+  biologique?: boolean;
+  statut?: string;
 };
 
 type LienDetail = {
+  relationId?: string;
   type: string;
+  sourceId?: string;
+  targetId?: string;
   sourceLabel?: string;
   targetLabel?: string;
+  biologique?: boolean;
+  statut?: string;
 };
+
+const NODE_WIDTH = 120;
+const NODE_HEIGHT = 60;
 
 export default function Tree() {
   const router = useRouter();
@@ -43,15 +52,10 @@ export default function Tree() {
   const [loading, setLoading] = useState(true);
   const [nodes, setNodes] = useState<NodeData[]>([]);
   const [edges, setEdges] = useState<EdgeData[]>([]);
-  
-  // Modals
   const [membreSelectionne, setMembreSelectionne] = useState<NodeData | null>(null);
   const [lienSelectionne, setLienSelectionne] = useState<LienDetail | null>(null);
 
-  const NODE_WIDTH = 120;
-  const NODE_HEIGHT = 60;
-
-  // --- ANIMATIONS (ZOOM & PAN) ---
+  // --- ANIMATIONS ---
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
@@ -83,20 +87,21 @@ export default function Tree() {
     ],
   }));
 
-  // --- DATA FETCHING ---
+  // --- FETCH ---
   const fetchGraphData = async () => {
     try {
       const userRole = await getRoleFromToken();
       setRole(userRole);
-      if (!userRole || userRole === 'wait') {
-        router.replace('/wait');
-        return;
-      }
+
+      if (!userRole) { router.replace('/'); return; }
+      if (userRole === 'wait') { router.replace('/wait'); return; }
+
       const token = await AsyncStorage.getItem('token');
       const response = await fetch('http://localhost:3000/graph', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
+
       if (data.success === "true") {
         setNodes(data.nodes);
         setEdges(data.edges);
@@ -110,192 +115,169 @@ export default function Tree() {
 
   useEffect(() => { fetchGraphData(); }, []);
 
-  // --- CONFIGURATION DAGRE ---
+  // --- SUPPRESSION MEMBRE ---
+  const handleDeleteMember = (id: string, name: string) => {
+  const confirme = window.confirm(`Supprimer ${name} ? Cela supprimera aussi tous ses liens.`);
+  if (!confirme) return;
+
+  AsyncStorage.getItem('token').then(token => {
+    fetch(`http://localhost:3000/members/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token ?? ''}` }
+    }).then(() => fetchGraphData())
+      .catch(() => window.alert("Impossible de supprimer le membre"));
+  });
+};
+
+// Supression Lien
+const handleDeleteEdge = (relationId: string) => {
+  const confirme = window.confirm("Supprimer ce lien ?");
+  if (!confirme) return;
+
+  AsyncStorage.getItem('token').then(token => {
+    fetch(`http://localhost:3000/relationships/${relationId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token ?? ''}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        console.log('Réponse suppression :', data);
+        if (data.success === "true") {
+          fetchGraphData();
+        } else {
+          window.alert("Erreur : " + data.message);
+        }
+      })
+      .catch(() => window.alert("Impossible de supprimer le lien"));
+  });
+};
+
+
+  // --- DAGRE ---
   const g = new dagre.graphlib.Graph();
   g.setGraph({ rankdir: 'TB', nodesep: 60, ranksep: 80 });
   g.setDefaultEdgeLabel(() => ({}));
 
-  nodes.forEach(n => {
-    g.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
-  });
-
-  // On ne fait passer par dagre que les relations parent-enfant pour la structure
-  edges.filter(e => e.type !== 'couple').forEach(e => {
-    g.setEdge(e.source, e.target);
-  });
-
+  nodes.forEach(n => g.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT }));
+  edges.filter(e => e.type !== 'couple').forEach(e => g.setEdge(e.source, e.target));
   dagre.layout(g);
 
   const { width, height } = Dimensions.get('window');
-
-// Fonction pour supprimer un membre
-const handleDeleteMember = (id: string, name: string) => {
-  Alert.alert(
-    "Supprimer un membre",
-    `Voulez-vous vraiment supprimer ${name} ? Cela supprimera aussi tous ses liens de parenté.`,
-    [
-      { text: "Annuler", style: "cancel" },
-      { 
-        text: "Supprimer", 
-        style: "destructive", 
-        onPress: async () => {
-          const token = await AsyncStorage.getItem('token');
-          try {
-            await fetch(`http://localhost:3000/members/${id}`, {
-              method: 'DELETE',
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-            fetchGraphData(); // On recharge les données pour mettre à jour l'arbre
-          } catch (e) {
-            Alert.alert("Erreur", "Impossible de supprimer le membre");
-          }
-        } 
-      }
-    ]
-  );
-};
-
-// Fonction pour supprimer une relation
-const handleDeleteEdge = (sourceId: string, targetId: string) => {
-  Alert.alert(
-    "Supprimer la relation",
-    "Voulez-vous supprimer ce lien ?",
-    [
-      { text: "Annuler", style: "cancel" },
-      { 
-        text: "Supprimer", 
-        style: "destructive", 
-        onPress: async () => {
-          const token = await AsyncStorage.getItem('token');
-          try {
-            // Attention : adapte l'URL selon ton API (soit un ID de relation, soit source/target)
-            await fetch(`http://localhost:3000/relationships/${sourceId}/${targetId}`, {
-              method: 'DELETE',
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-            fetchGraphData();
-          } catch (e) {
-            Alert.alert("Erreur", "Impossible de supprimer le lien");
-          }
-        } 
-      }
-    ]
-  );
-};
-
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#f5f6fa' }}>
+
+      {/* HEADER */}
       <View style={styles.header}>
         <RNText style={styles.welcomeTitle}>Genoa - Arbre Généalogique</RNText>
       </View>
 
+      {/* ARBRE */}
       <GestureDetector gesture={gesture}>
         <Animated.View style={[{ flex: 1 }, animatedStyle]}>
           <Svg width={width * 2} height={height * 2}>
-            {/* 1. Rendu des liens PARENT-ENFANT (Dagre) */}
-              {g.edges().map((e, i) => {
-                const edge = g.edge(e);
-                const originalEdge = edges.find(ed => ed.source === e.v && ed.target === e.w);
-                return (
-                  <Line
-                    key={`edge-${i}`}
-                    x1={edge.points[0].x}
-                    y1={edge.points[0].y}
-                    x2={edge.points[edge.points.length - 1].x}
-                    y2={edge.points[edge.points.length - 1].y}
-                    stroke={originalEdge?.biologique === false ? "#e67e22" : "#bdc3c7"}
-                    strokeWidth={originalEdge?.biologique === false ? 3 : 2}
-                    onLongPress={() => handleDeleteEdge(e.v, e.w)}
-                    {...({
-                      onContextMenu: (event: any) => {
-                        event.preventDefault();
-                        handleDeleteEdge(e.v, e.w);
-                      }
-                    } as any)}
-                  />
-                );
-              })}
 
-            {/* 2. Rendu des liens de COUPLE */}
-              {edges.filter(e => e.type === 'couple').map((couple, i) => {
-                const node1 = g.node(couple.source);
-                const node2 = g.node(couple.target);
-                if (!node1 || !node2) return null;
-                return (
-                  <G 
-                    key={`couple-${i}`} 
-                    onPress={() => setLienSelectionne({
-                      type: 'couple',
-                      sourceLabel: nodes.find(n => n.id === couple.source)?.label,
-                      targetLabel: nodes.find(n => n.id === couple.target)?.label,
-                    })}
-                    onLongPress={() => handleDeleteEdge(couple.source, couple.target)}
-                    {...({
-                      onContextMenu: (event: any) => {
-                        event.preventDefault();
-                        handleDeleteEdge(couple.source, couple.target);
-                      }
-                    } as any)}
-                  >
+            {/* Liens parent-enfant visibles */}
+            {g.edges().map((e, i) => {
+              const edge = g.edge(e);
+              const originalEdge = edges.find(ed => ed.source === e.v && ed.target === e.w);
+              return (
+                <G key={`edge-${i}`}>
                   <Line
-                    x1={node1.x + NODE_WIDTH / 4}
-                    y1={node1.y}
-                    x2={node2.x - NODE_WIDTH / 4}
-                    y2={node2.y}
+                    x1={edge.points[0].x} y1={edge.points[0].y}
+                    x2={edge.points[edge.points.length - 1].x} y2={edge.points[edge.points.length - 1].y}
+                    stroke={originalEdge?.biologique === false ? "#e67e22" : "#bdc3c7"}
+                    strokeWidth={2}
+                  />
+                  {/* Zone cliquable transparente */}
+                  <Line
+                    x1={edge.points[0].x} y1={edge.points[0].y}
+                    x2={edge.points[edge.points.length - 1].x} y2={edge.points[edge.points.length - 1].y}
+                    stroke="transparent"
+                    strokeWidth={20}
+                    onPress={() => setLienSelectionne({
+                      type: 'parent',
+                      relationId: originalEdge?.id,
+                      sourceId: e.v,
+                      targetId: e.w,
+                      biologique: originalEdge?.biologique,
+                    })}
+                  />
+                </G>
+              );
+            })}
+
+            {/* Liens de couple */}
+            {edges.filter(e => e.type === 'couple').map((couple, i) => {
+              const node1 = g.node(couple.source);
+              const node2 = g.node(couple.target);
+              if (!node1 || !node2) return null;
+              return (
+                <G key={`couple-${i}`}>
+                  <Line
+                    x1={node1.x + NODE_WIDTH / 4} y1={node1.y}
+                    x2={node2.x - NODE_WIDTH / 4} y2={node2.y}
                     stroke={couple.statut === 'divorce' ? 'red' : 'gold'}
                     strokeWidth={4}
                   />
-                  </G>
-                );
-              })}
+                  {/* Zone cliquable transparente */}
+                  <Line
+                    x1={node1.x + NODE_WIDTH / 4} y1={node1.y}
+                    x2={node2.x - NODE_WIDTH / 4} y2={node2.y}
+                    stroke="transparent"
+                    strokeWidth={20}
+                    onPress={() => setLienSelectionne({
+                      type: 'couple',
+                      relationId: couple.id,
+                      sourceId: couple.source,
+                      targetId: couple.target,
+                      sourceLabel: nodes.find(n => n.id === couple.source)?.label,
+                      targetLabel: nodes.find(n => n.id === couple.target)?.label,
+                      statut: couple.statut,
+                    })}
+                  />
+                </G>
+              );
+            })}
 
-            {/* 3. Rendu des MEMBRES (Nodes) */}
-              {g.nodes().map(id => {
-                const node = g.node(id);
-                const originalData = nodes.find(n => n.id === id);
+            {/* Noeuds membres */}
+            {g.nodes().map(id => {
+              const node = g.node(id);
+              const originalData = nodes.find(n => n.id === id);
               return (
-                <G 
-                  key={id} 
-                  onPress={() => originalData && setMembreSelectionne(originalData)}
-                  onLongPress={() => originalData && handleDeleteMember(id, originalData.label)}
-                  {...({
-                    onContextMenu: (event: any) => {
-                      event.preventDefault();
-                      if (originalData) handleDeleteMember(id, originalData.label);
-                    }
-                  } as any)}
-                >
-                <Rect
-                  x={node.x - NODE_WIDTH / 2}
-                  y={node.y - NODE_HEIGHT / 2}
-                  width={NODE_WIDTH} 
-                  height={NODE_HEIGHT}
-                  fill="white"
-                  stroke={originalData?.data.sexe === 'F' ? '#e84393' : '#0984e3'}
-                  strokeWidth={2} 
-                  rx={10}
-                />
-                  <Text 
-                    x={node.x} 
-                    y={node.y + 5} 
-                    textAnchor="middle" 
-                    fontSize={12} 
-                    fontWeight="bold" 
+                <G key={id}>
+                  <Rect
+                    x={node.x - NODE_WIDTH / 2}
+                    y={node.y - NODE_HEIGHT / 2}
+                    width={NODE_WIDTH}
+                    height={NODE_HEIGHT}
+                    fill="white"
+                    stroke={originalData?.data.sexe === 'F' ? '#e84393' : '#0984e3'}
+                    strokeWidth={2}
+                    rx={10}
+                    onPress={() => originalData && setMembreSelectionne(originalData)}
+                  />
+                  <Text
+                    x={node.x}
+                    y={node.y + 5}
+                    textAnchor="middle"
+                    fontSize={12}
+                    fontWeight="bold"
                     fill="#2d3436"
-                    >
+                  >
                     {originalData?.label}
                   </Text>
                 </G>
               );
             })}
+
           </Svg>
         </Animated.View>
       </GestureDetector>
 
-      {/* FOOTER ACTIONS */}
+      {/* FOOTER */}
       <View style={styles.footer}>
         {(role === 'admin' || role === 'writer') && (
           <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/editTree')}>
@@ -309,71 +291,118 @@ const handleDeleteEdge = (sourceId: string, targetId: string) => {
         )}
       </View>
 
-      {/* MODAL : FICHE MEMBRE */}
+      {/* MODAL MEMBRE */}
       <Modal visible={membreSelectionne !== null} transparent animationType="slide">
-  <View style={styles.modalOverlay}>
-    <View style={styles.modalContent}>
-      {/* Titre : Prénom et Nom */}
-      <RNText style={styles.modalTitle}>
-        {membreSelectionne?.data.firstName} {membreSelectionne?.data.lastName}
-      </RNText>
-      
-      {/* Ligne Sexe */}
-      <View style={styles.infoRow}>
-         <RNText style={styles.infoLabel}>Sexe : </RNText>
-        <RNText>{membreSelectionne?.data.sexe === 'M' ? 'Homme ♂️' : 'Femme ♀️'}</RNText>      </View>
-
-      {/* Ligne Profession */}
-      <View style={styles.infoRow}>
-         <RNText style={styles.infoLabel}>Profession : </RNText>
-         <RNText>{membreSelectionne?.data.profession || 'Non renseignée'}</RNText>
-      </View>
-
-      {/* Ligne Naissance */}
-      <View style={styles.infoRow}>
-         <RNText style={styles.infoLabel}>Naissance : </RNText>
-         <RNText>{membreSelectionne?.data.birthDate || 'Inconnue'}</RNText>
-      </View>
-
-      {/* Ligne Décès (ne s'affiche que si remplie) */}
-      {membreSelectionne?.data.deathDate && (
-        <View style={styles.infoRow}>
-          <RNText style={styles.infoLabel}>Décès : </RNText>
-          <RNText>{membreSelectionne.data.deathDate}</RNText>
-        </View>
-      )}
-
-      {/* Bloc Biographie */}
-      <RNText style={[styles.infoLabel, { marginTop: 10 }]}>Biographie :</RNText>
-      <View style={styles.bioContainer}>
-        <RNText style={styles.bioText}>
-          {membreSelectionne?.data.biography || "Aucune description disponible."}
-        </RNText>
-      </View>
-
-      {/* Bouton Fermer */}
-      <TouchableOpacity 
-        onPress={() => setMembreSelectionne(null)} 
-        style={styles.closeButton}
-      >
-        <RNText style={{ color: 'white', fontWeight: 'bold' }}>Fermer</RNText>
-      </TouchableOpacity>
-    </View>
-  </View>
-</Modal>
-
-      {/* MODAL : DÉTAILS LIEN */}
-      <Modal visible={lienSelectionne !== null} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <RNText style={styles.modalTitle}>Relation de Couple</RNText>
-            <RNText>{lienSelectionne?.sourceLabel} ❤️ {lienSelectionne?.targetLabel}</RNText>
-            <TouchableOpacity onPress={() => setLienSelectionne(null)} style={[styles.closeButton, {backgroundColor: 'gold'}]}>
-              <RNText>OK</RNText>
+            <RNText style={styles.modalTitle}>
+              {membreSelectionne?.data.firstName} {membreSelectionne?.data.lastName}
+            </RNText>
+
+            <View style={styles.infoRow}>
+              <RNText style={styles.infoLabel}>Sexe : </RNText>
+              <RNText>{membreSelectionne?.data.sexe === 'M' ? 'Homme' : 'Femme'}</RNText>
+            </View>
+
+            <View style={styles.infoRow}>
+              <RNText style={styles.infoLabel}>Profession : </RNText>
+              <RNText>{membreSelectionne?.data.profession || 'Non renseignée'}</RNText>
+            </View>
+
+            <View style={styles.infoRow}>
+              <RNText style={styles.infoLabel}>Naissance : </RNText>
+              <RNText>{membreSelectionne?.data.birthDate || 'Inconnue'}</RNText>
+            </View>
+
+            {membreSelectionne?.data.deathDate && (
+              <View style={styles.infoRow}>
+                <RNText style={styles.infoLabel}>Décès : </RNText>
+                <RNText>{membreSelectionne.data.deathDate}</RNText>
+              </View>
+            )}
+
+            <RNText style={[styles.infoLabel, { marginTop: 10 }]}>Biographie :</RNText>
+            <View style={styles.bioContainer}>
+              <RNText style={styles.bioText}>
+                {membreSelectionne?.data.biography || "Aucune description disponible."}
+              </RNText>
+            </View>
+
+            {(role === 'admin' || role === 'writer') && (
+              <TouchableOpacity
+                onPress={() => {
+                  if (membreSelectionne) {
+                    handleDeleteMember(membreSelectionne.id, membreSelectionne.label);
+                    setMembreSelectionne(null);
+                  }
+                }}
+                style={[styles.closeButton, { backgroundColor: '#e74c3c', marginTop: 10 }]}
+              >
+                <RNText style={{ color: 'white', fontWeight: 'bold' }}>🗑️ Supprimer</RNText>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity onPress={() => setMembreSelectionne(null)} style={styles.closeButton}>
+              <RNText style={{ color: 'white', fontWeight: 'bold' }}>Fermer</RNText>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
+      {/* MODAL LIEN */}
+      <Modal visible={lienSelectionne !== null} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <RNText style={styles.modalTitle}>
+              {lienSelectionne?.type === 'couple' ? 'Relation de couple' : 'Relation parent-enfant'}
+            </RNText>
+
+            {lienSelectionne?.type === 'couple' && (
+              <>
+                <RNText style={styles.infoLabel}>Personnes :</RNText>
+                <RNText style={{ marginBottom: 8 }}>
+                  {lienSelectionne.sourceLabel} — {lienSelectionne.targetLabel}
+                </RNText>
+                <RNText style={styles.infoLabel}>Statut :</RNText>
+                <RNText style={{ marginBottom: 8 }}>
+                  {lienSelectionne.statut === 'marie' ? 'Marié(e)s' :
+                   lienSelectionne.statut === 'pacs' ? 'Pacsé(e)s' :
+                   lienSelectionne.statut === 'divorce' ? 'Divorcé(e)s' :
+                   'Non renseigné'}
+                </RNText>
+              </>
+            )}
+
+            {lienSelectionne?.type === 'parent' && (
+              <>
+                <RNText style={styles.infoLabel}>Type de lien :</RNText>
+                <RNText style={{ marginBottom: 8 }}>
+                  {lienSelectionne.biologique ? 'Biologique' : 'Adoption'}
+                </RNText>
+              </>
+            )}
+
+            {(role === 'admin' || role === 'writer') && (
+              <TouchableOpacity
+                onPress={() => {
+                  if (lienSelectionne?.relationId) {
+                    handleDeleteEdge(lienSelectionne.relationId);
+                    setLienSelectionne(null);
+                    }
+                  }}
+                style={{ backgroundColor: '#e74c3c', padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 10 }}
+              >
+                <RNText style={{ color: 'white', fontWeight: 'bold' }}>🗑️ Supprimer ce lien</RNText>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity onPress={() => setLienSelectionne(null)} style={styles.closeButton}>
+              <RNText style={{ color: 'white', fontWeight: 'bold' }}>Fermer</RNText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </GestureHandlerRootView>
   );
 }
@@ -384,51 +413,12 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'space-around', padding: 20, backgroundColor: 'white', borderTopWidth: 1, borderColor: '#dfe6e9' },
   actionButton: { backgroundColor: '#3498db', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 25 },
   actionButtonText: { color: 'white', fontWeight: 'bold' },
-  modalOverlay: { 
-    flex: 1, 
-    justifyContent: 'flex-end', 
-    backgroundColor: 'rgba(0,0,0,0.6)' 
-  },
-  modalContent: { 
-    backgroundColor: 'white', 
-    padding: 25, 
-    borderTopLeftRadius: 30, 
-    borderTopRightRadius: 30,
-    minHeight: 300 
-  },
-  modalTitle: { 
-    fontSize: 26, 
-    fontWeight: 'bold', 
-    marginBottom: 20, 
-    color: '#2d3436' 
-  },
-  infoRow: { 
-    flexDirection: 'row', 
-    marginBottom: 12,
-    alignItems: 'center'
-  },
-  infoLabel: { 
-    fontWeight: 'bold', 
-    fontSize: 16,
-    color: '#636e72' 
-  },
-  bioContainer: {
-    marginTop: 8,
-    padding: 15,
-    backgroundColor: '#f1f2f6',
-    borderRadius: 12,
-  },
-  bioText: { 
-    fontSize: 15,
-    color: '#2d3436', 
-    fontStyle: 'italic',
-    lineHeight: 22
-  },
-  closeButton: { 
-    marginTop: 25, 
-    backgroundColor: '#3498db', 
-    padding: 16, 
-    borderRadius: 15, 
-    alignItems: 'center' 
-  }
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalContent: { backgroundColor: 'white', padding: 25, borderTopLeftRadius: 30, borderTopRightRadius: 30, minHeight: 300 },
+  modalTitle: { fontSize: 26, fontWeight: 'bold', marginBottom: 20, color: '#2d3436' },
+  infoRow: { flexDirection: 'row', marginBottom: 12, alignItems: 'center' },
+  infoLabel: { fontWeight: 'bold', fontSize: 16, color: '#636e72' },
+  bioContainer: { marginTop: 8, padding: 15, backgroundColor: '#f1f2f6', borderRadius: 12 },
+  bioText: { fontSize: 15, color: '#2d3436', fontStyle: 'italic', lineHeight: 22 },
+  closeButton: { marginTop: 10, backgroundColor: '#3498db', padding: 16, borderRadius: 15, alignItems: 'center' },
 });
