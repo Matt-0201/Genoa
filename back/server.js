@@ -4,6 +4,7 @@ const path = require('path');
 const cors = require('cors');
 const { connectDB } = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
+const graphRoutes = require('./src/routes/graphRoutes');
 
 const app = express();
 
@@ -21,6 +22,7 @@ connectDB(url)
 
 // Routes
 app.use('/', authRoutes);
+app.use('/', graphRoutes);
 
 app.listen(3000, () => {
     console.log("Serveur démarré sur le port 3000");
