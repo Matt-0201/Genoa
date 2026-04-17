@@ -116,3 +116,10 @@ exports.updateUserRole = async (req, res) => {
         res.status(500).json({ success: "false", message: "Erreur lors de la mise à jour" });
     }
 };
+
+exports.getMe = async (req, res) => {
+    const db = getDB();
+    // req.user.email vient de ton middleware JWT
+    const user = await db.collection("users").findOne({ email: req.user.email });
+    res.json({ success: "true", role: user.role });
+};

@@ -33,23 +33,39 @@ function couleurRole(role: string) {
 export default function Admin() {
     const router = useRouter();
 
-    useEffect(() => {
-  async function chargerUsers() {
-    const token = await AsyncStorage.getItem('token');
-    const response = await fetch('http://localhost:3000/genoa', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await response.json();
-    // Adapter la structure MongoDB à notre type Utilisateur
-    const usersFormates = data.users.map((u: any) => ({
-      id: u._id,
-      email: u.email,
-      role: u.role,
-      tokenExpire: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // temporaire
-    }));
-    setUtilisateurs(usersFormates);
+
+useEffect(() => {
+  async function initialiserPage() {
+    const role = await getRoleFromToken();
+    
+    // 1. Vérification de sécurité
+    if (role !== 'admin') {
+      router.replace('/tree');
+      alert("Accès refusé");
+      return;
+    }
+
+    // 2. Si admin, on charge les données
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await fetch('http://localhost:3000/genoa', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      
+      const usersFormates = data.users.map((u: any) => ({
+        id: u._id,
+        email: u.email,
+        role: u.role,
+        tokenExpire: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      }));
+      setUtilisateurs(usersFormates);
+    } catch (error) {
+      console.error("Erreur de chargement", error);
+    }
   }
-  chargerUsers();
+
+  initialiserPage();
 }, []);
 
 
@@ -114,7 +130,7 @@ const [userSelectionne, setUserSelectionne] = useState<Utilisateur | null>(null)
             <View style={{ flex: 1 }}>
               <Text style={styles.email}>{item.email}</Text>
               <Text style={styles.tokenTexte}>
-                Token : {tokenActif(item.tokenExpire) ? '✅ Actif' : '❌ Expiré'}
+                Token : {tokenActif(item.tokenExpire) ? 'Actif' : 'Expiré'}
               </Text>
             </View>
 
