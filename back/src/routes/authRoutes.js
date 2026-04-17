@@ -10,4 +10,6 @@ router.post('/login', authController.login);
 
 router.get('/genoa', authController.getUsers);
 
+router.put('/admin/users/:id', authController.updateUserRole); //nouvelle route pour l'admin
+
 module.exports = router;

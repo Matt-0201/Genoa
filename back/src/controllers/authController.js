@@ -4,6 +4,11 @@ const jwt = require("jsonwebtoken");
 const { getDB } = require('../config/db');
 const bcrypt = require('bcryptjs');
 
+
+const { ObjectId } = require('mongodb'); //Rajout pour gestion des roles
+
+
+
 // Complexity for the hash
 const saltRounds = 10;
 
@@ -74,6 +79,11 @@ exports.getUsers = async (req, res) => {
     const db = getDB();
     const users = db.collection("users");
     const listUsers = await users.find({}).toArray();
+    res.status(200).json({ //Me permet de recuperer la liste des urilisateurs et keurs roles
+    "success": "true",
+    "users": listUsers
+  });
+ /*   
     if (req.body.role == "admin") {
         res.status(200).json({
             "success": "true",
@@ -84,5 +94,25 @@ exports.getUsers = async (req, res) => {
             "success": "false",
             "message": "Utilisateur nom admin. Accès à la ressource impossible."
         })
-    }
+    }*/
 }
+
+
+
+// Nouvelle fonction pour mettre à jour le rôle
+exports.updateUserRole = async (req, res) => {
+    const { id } = req.params;
+    const { role } = req.body;
+    const db = getDB();
+    
+    try {
+        await db.collection("users").updateOne(
+            { _id: new ObjectId(id) }, 
+            { $set: { role: role } }
+        );
+        res.status(200).json({ success: "true", message: "Rôle mis à jour avec succès" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: "false", message: "Erreur lors de la mise à jour" });
+    }
+};
