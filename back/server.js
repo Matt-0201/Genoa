@@ -5,6 +5,9 @@ const cors = require('cors');
 const { connectDB } = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoutes');
 const graphRoutes = require('./src/routes/graphRoutes');
+const http = require('http');
+const { initSocket } = require('./src/config/socket');
+const { lockHandler } = require('./src/sockets/lockHandler');
 
 const app = express();
 
@@ -16,7 +19,7 @@ app.use(express.json());
 
 
 // Connexion BDD
-const url = process.env.DB_URL; // Adresse de la bdd dans le .env
+const url = process.env.DB_URL; // Adresse de la bdd in the .env
 
 connectDB(url)
 
@@ -24,6 +27,15 @@ connectDB(url)
 app.use('/', authRoutes);
 app.use('/', graphRoutes);
 
-app.listen(3000, () => {
-    console.log("Serveur démarré sur le port 3000");
-})
+const server = http.createServer(app);
+const io = initSocket(server);
+
+// Register socket events
+io.on('connection', (socket) => {
+    console.log(`Client connected : ${socket.id}`);
+    lockHandler(io, socket);
+});
+
+server.listen(3000, () => {
+    console.log('Serveur démarré sur le port 3000');
+});
