@@ -1,0 +1,17 @@
+[
+  {
+    "sourceRef": "M1",
+    "targetRef": "M2",
+    "type": "spouse"
+  },
+  {
+    "sourceRef": "M1",
+    "targetRef": "M3",
+    "type": "parent-child"
+  },
+  {
+    "sourceRef": "M2",
+    "targetRef": "M3",
+    "type": "parent-child"
+  }
+]

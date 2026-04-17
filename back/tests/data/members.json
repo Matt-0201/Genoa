@@ -1,36 +1,56 @@
 [
-    {
-        "LasteName": "Tatatata",
-        "FirstName": "Tata",
-        "Gender": "Man",
-        "Photo": null,
-        "Birth": "17/03/2001",
-        "Death": null,
-        "Work": "Unemployed",
-        "Contact": {
-            "mail": "tata@gmail.com",
-            "phone": "07 76 97 14 78"
-        },
-        "Miscellaneous": {
-            "public": "Like to eat ice cream",
-            "private": "Steal a pen one time" 
-        }
+  {
+    "ref": "M1",
+    "lastName": "Maurice",
+    "firstName": "Jean-Paul",
+    "gender": "Man",
+    "photo": null,
+    "birth": "2001-03-17",
+    "death": null,
+    "work": "Chauffeur de salle",
+    "contact": {
+      "mail": "JeanPaul@gmail.com",
+      "phone": "07 76 97 14 78"
     },
-    {
-        "LasteName": "Totototo",
-        "FirstName": "Toto",
-        "Gender": "Woman",
-        "Photo": null,
-        "Birth": "29/07/2002",
-        "Death": null,
-        "Work": "Unemployed",
-        "Contact": {
-            "mail": "toto@gmail.com",
-            "phone": "07 78 71 75 78"
-        },
-        "Miscellaneous": {
-            "public": "Like to eat ice cream",
-            "private": "Steal a pen one time" 
-        }
+    "miscellaneous": {
+      "public": "Aime bien les voitures",
+      "private": "A déjà volé un stylo (une fois)"
     }
+  },
+  {
+    "ref": "M2",
+    "lastName": "Martin",
+    "firstName": "Henricette",
+    "gender": "Woman",
+    "photo": null,
+    "birth": "2002-07-29",
+    "death": null,
+    "work": "PDG d'une 'petite' entreprise côté au CAC40",
+    "contact": {
+      "mail": "lana@gmail.com",
+      "phone": "07 78 71 75 78"
+    },
+    "miscellaneous": {
+      "public": "Aime bien les glaces",
+      "private": "Partage sa vie privée"
+    }
+  },
+  {
+    "ref": "M3",
+    "lastName": "Maurice",
+    "firstName": "Enzo",
+    "gender": "Man",
+    "photo": null,
+    "birth": "2022-05-10",
+    "death": null,
+    "work": null,
+    "contact": {
+      "mail": null,
+      "phone": null
+    },
+    "miscellaneous": {
+      "public": null,
+      "private": null
+    }
+  }
 ]
