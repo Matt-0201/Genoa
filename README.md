@@ -23,25 +23,29 @@ Hors précision, si les deux noms sont ajoutés Matthieu s'est chargé de la par
 * Script de création de base de données d'utilisateurs. -- Matthieu
 
 ### Gestion des Membres
+
 * Création, modification et suppression de membres. -- Matthieu & Pierre
 * Gestion des fiches individuelles (état civil, profession, biographie). -- Matthieu
 * Attribution automatique de références uniques (M1, M2...). -- Matthieu
 * Script de création de base de données de membre. -- Matthieu
 
 ### Gestion des Relations Familiales
+
 * Création de liens de parenté (parent-enfant) avec distinction biologique/adoptif.  -- Matthieu & Pierre
 * Gestion des relations de couple (mariage, divorce...). -- Matthieu & Pierre
 * Maintien de l'intégrité des données lors de la suppression de membres. Pierre (back)
 * Scripts de création de base de données de relations. -- Matthieu
 
 ### Visualisation de l'Arbre Généalogique
+
 * Liaison avec l'API de front. -- Pierre
 * Rendu graphique dynamique de la structure familiale, création des différente pages. Pierre
 * Calcul automatique du layout (moteur Dagre). -- Pierre
 * Navigation interactive. -- Pierre
 
 ### Gestion des Droits et Concurrence
-* Verrouillage des nœuds (Locking) : empêche la modification simultanée d'un même membre par deux utilisateurs. -- Matthieu
+
+* Verrouillage des nœuds (Locking) : empêche la modification simultanée d'un même membre par deux utilisateurs. (non fonctionnel avec le front) -- Matthieu
 * Attribution temporaire des droits d'édition sur un nœud. -- Matthieu
 * Gestion des permissions selon le rôle de l'utilisateur. -- Pierre
 
@@ -63,6 +67,10 @@ Hors précision, si les deux noms sont ajoutés Matthieu s'est chargé de la par
 2. Configuration de l'adresse IP de l'API dans le code.
 3. `npx expo start`
 
+## Extensions :
+
+* Début de concurrence d'accès commencé par Matthieu. Seulement côté back. Pas forcèment de la bonne manière, système avec lock des noeuds et impossibilité de modification aux noeuds en cours de modifications.
+* Dockerisation de la base de données avec une image mongodb par Matthieu. Le fichier exemple qui a paramétré la bdd au cours du projet est présent dans /back/dockerConfig/docker-config-ex.yml. Il est donc a utiliser en accord avec une image mongodb. Attention aussi, il faut modifier son .env et adapter DB_URL avec l'utilisateur et le mot de passe défini dans le .yml 
 
 
 
